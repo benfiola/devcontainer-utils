@@ -1,0 +1,5 @@
+# Changes here will be overwritten by Copier
+_src_path: ./template-gen/benfiola_devcontainers/template
+nodejs_version: 16.20.2
+project_name: example
+python_version: 3.10.13

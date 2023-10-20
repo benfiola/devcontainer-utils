@@ -1,0 +1,21 @@
+{
+  "name": "example",
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "example",
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "./.devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "njpwerner.autodocstring",
+        "rohit-gohri.format-code-action",
+        "usernamehw.errorlens"
+      ]
+    }
+  }
+}

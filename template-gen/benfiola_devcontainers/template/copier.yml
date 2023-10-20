@@ -1,0 +1,13 @@
+project_name:
+  type: str
+
+python_version:
+  type: str
+  default: ""
+
+nodejs_version:
+  type: str
+  default: ""
+
+_jinja_extensions:
+  - benfiola_devcontainers.extension.Extension
