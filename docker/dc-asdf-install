@@ -10,10 +10,10 @@ plugin="${1}"
 version="${2}"
 
 echo "installing plugin: ${plugin}"
-/dc/dc-wrapper asdf plugin add "${plugin}"
+asdf plugin add "${plugin}"
 
 echo "installing tool version: ${plugin}-${version}"
-/dc/dc-wrapper asdf install "${plugin}" "${version}"
+asdf install "${plugin}" "${version}"
 
 echo "setting global tool: ${plugin}-${version}"
-/dc/dc-wrapper asdf global "${plugin}" "${version}"
+asdf global "${plugin}" "${version}"
