@@ -59,3 +59,11 @@ At a high-level:
 - [.devcontainer/post-create.sh](./template-gen/example/.devcontainer/post-create.sh) is a script run after the dev container has been created, and local source has been mounted into the container. This allows you to perform additional setup - like installing project dependencies, and applying migrations to local databases.
 - [.devcontainer/docker-compose.yml](./template-gen/example/.devcontainer/docker-compose.yml) provides additional arguments to docker when creating the dev container - and additionally allows you to define auxillary containers (databases, redis) that will be started alongside the dev container
 - [.vscode/settings.json](./template-gen/example/.vscode/settings.json) provides vscode-specific settings - often configuring details like extension settings (installed via `.devcontainer/devcontainer.json`) and tool locations (installed via `.devcontainer/Dockerfile`)
+
+## TODO
+
+- Overlay user customizations on top of generated project (- `copier update` should _not_ delete user customizations):
+  - Additional vscode extensions (in .devcontainer/devcontainer.json)
+  - Additional vscode settings (in .vscode/settings.json)
+  - Custom scripts (in .devcontainer/post-create.sh)
+  - Custom scripts (in .devcontainer/Dockerfile)
