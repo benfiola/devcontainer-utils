@@ -1,0 +1,15 @@
+#!/bin/sh
+# this wrapper script provides an entry-point for supporting tool initialization + environment customization.
+#
+# this script is used as the image entrypoint, and does not need to be invoked manually at runtime.
+# however, during the image build, this script will need to be invoked manually (e.g., RUN dc-wrapper asdf plugin list)
+set -e
+
+# configure asdf
+export ASDF_CONFIG_FILE="/dc/asdf-config"
+export ASDF_DIR="/dc/asdf"
+export ASDF_DATA_DIR="${ASDF_DIR}"
+export ASDF_FORCE_PREPEND="yes"
+. "${ASDF_DIR}/asdf.sh"
+
+exec "$@"

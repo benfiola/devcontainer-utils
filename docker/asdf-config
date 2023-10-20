@@ -1,0 +1,4 @@
+# defines asdf configuration
+# 
+# more info: (https://asdf-vm.com/manage/configuration.html#asdfrc)
+pre_asdf_plugin_add_python = /dc/asdf-hook-plugin-python 
