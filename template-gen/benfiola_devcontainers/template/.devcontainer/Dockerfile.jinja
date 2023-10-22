@@ -1,4 +1,0 @@
-FROM docker.io/benfiola/devcontainers:latest
-{% for plugin, version in asdf_tool_versions -%}
-RUN dc-asdf-install {{plugin}} {{version}}
-{% endfor %}

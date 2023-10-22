@@ -1,9 +1,0 @@
-version: '3'
-services:
-  {{project_name}}:
-    build:
-      dockerfile: .devcontainer/Dockerfile
-      context: ..
-    volumes:
-      - ..:/workspace:cached
-    command: /bin/sh -c "while sleep 1000; do :; done"

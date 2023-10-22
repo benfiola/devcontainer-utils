@@ -1,0 +1,12 @@
+{
+    "folders": [
+        {
+            "name": ".devcontainer",
+            "path": "/workspace/.devcontainer"
+        },
+        {
+            "name": "devcontainer-utils",
+            "path": "/workspace/devcontainer-utils"
+        }
+    ]
+}

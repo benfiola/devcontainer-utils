@@ -1,69 +1,59 @@
-# devcontainers
+# devcontainer-utils
 
-This repository hosts various files and tools used to help create and maintain [devcontainers](https://containers.dev/).
+This repository hosts several subprojects intended to help create and maintain [devcontainer](https://containers.dev/) configurations for projects.
+
+Primarily, this project exposes a _dc-utils_ CLI that can auto-generate devcontainer configurations.
+
+## _dc-utils_
+
+Install [dc-utils](./cli) with the following command:
+
+```shell
+pip install git+https://github.com/benfiola/devcontainer-utils#subdirectory=cli
+```
+
+Using the _dc-utils_ CLI is simple. When you run the following command:
+
+```shell
+dc-utils generate [workspace_folder] [workspace_folder...] [--output-path <output_path>]
+```
+
+_dc-utils_ will recursively search each workspace folder and discover projects (and the languages used by them). It will then generate a _.devcontainer_ folder at _<output_path>_ containing:
+
+- A _Dockerfile_ that installs the tools for all discovered languages.
+- A _docker-compose.yaml_ file that will mount all workspace folders into the docker container
+- A _post-create.sh_ script (run after Docker image creation) that configures each discovered project with the discovered tool
+- A _devcontainer.json_ file that glues the above together, installs recommended extensions per discovered language and configures them
+- A _devcontainer.code-workspace_ file that defines a vscode workspace containing all workspace folders
+
+Ideally, you should be able to open a folder containing this _.devcontainer_ folder, re-open the folder in a devcontainer, and everything should just work, leaving you with a reasonable development environment.
+
+As an example, _dc-utils_ was run against this repo - and you can see the generated output in the [.devcontainer](./.devcontainer) folder.
+
+You can read more about VSCode's devcontainers integration by reading their [docs](https://code.visualstudio.com/docs/devcontainers/containers).
 
 ## Base Image
 
-The [docker](./docker) folder contains files used to produce a base image that reduces some of the boilerplate required to produce devcontainer images. It installs and uses `asdf` to aid in the installation of various development toolchains.
+Rather than use specialized docker images that provide a single pre-installed tool, we use a [custom base image](./base-image) that installs [asdf](https://asdf-vm.com/) along with common build dependencies. This allows us to more easily generate dynamic Dockerfiles when _dc-utils_ is run.
 
-`dc-asdf-install` is a command that adds the desired plugin, installs the specified tool version and sets that version as the global version within the image.
+Core to the base image is the `dc-utils-install-tool` command. This command adds the required asdf plugin, installs a tool version using that plugin, and then sets that tool as the current (global) version for the image.
 
-An example dockerfile might look like:
-
-```Dockerfile
-FROM docker.io/benfiola/devcontainers:latest
-# install tools via asdf using `dc-asdf-install`
-RUN dc-asdf-install python 3.9.18
-```
-
-Using this dockerfile might look like:
+Here's an example image that installs nodejs-16.20.2 and python-3.10.13.
 
 ```
-> docker run ... python --version
-Python 3.9.18
+FROM docker.io/benfiola/devcontainer-utils:latest
+dc-utils-install-tool nodejs 16.20.2
+dc-utils-install-tool python 3.10.3
 ```
 
-## Template Generation
+The resulting docker image will then have nodejs 16.20.2 and python 3.10.3 on the PATH.
 
-The [template-gen](./template-gen/) folder contains a python CLI that's capable of bootstrapping an existing project with all the necessary settings files to quickly get started with devcontainers within vscode.
+## VSCode Extension
 
-The [template-gen/example](./template-gen/example) folder was created from the following invocation:
-
-```shell
-> benfiola-devcontainers-gen template-gen/example
-🎤 project_name
-   example
-🎤 python_version
-   3.10.13
-🎤 nodejs_version
-   16.20.2
-
-Copying from template version None
-    create  .
-    create  .copier-answers.yml
-    create  .devcontainer
-    create  .devcontainer/docker-compose.yml
-    create  .devcontainer/Dockerfile
-    create  .devcontainer/devcontainer.json
-    create  .devcontainer/post-create.sh
-    create  .vscode
-    create  .vscode/settings.json
-```
-
-You should be able to open the [template-gen/example](./template-gen/example/) folder within vscode - and should then be able to perform the `Reopen in Container` action without issue.
-
-At a high-level:
-
-- [.devcontainer/devcontainer.json](./template-gen/example/.devcontainer/devcontainer.json) contains the dev container metadata - this not only contains pointers to other necessary files, but also contains vscode-specific customizations (including desired extensions)
-- [.devcontainer/Dockerfile](./template-gen/example/.devcontainer/Dockerfile) is the Dockerfile from which the dev container will be created
-- [.devcontainer/post-create.sh](./template-gen/example/.devcontainer/post-create.sh) is a script run after the dev container has been created, and local source has been mounted into the container. This allows you to perform additional setup - like installing project dependencies, and applying migrations to local databases.
-- [.devcontainer/docker-compose.yml](./template-gen/example/.devcontainer/docker-compose.yml) provides additional arguments to docker when creating the dev container - and additionally allows you to define auxillary containers (databases, redis) that will be started alongside the dev container
-- [.vscode/settings.json](./template-gen/example/.vscode/settings.json) provides vscode-specific settings - often configuring details like extension settings (installed via `.devcontainer/devcontainer.json`) and tool locations (installed via `.devcontainer/Dockerfile`)
+VSCode won't automatically open workspaces when reopening a project in a devcontainer. Because we generate a workspace via _dc-utils_, we smooth out this process (and save a click) by using a [custom vscode extension](./vscode-ext/). This extension will open the generated _code-workspace_ file when vscode is initially launched in a devcontainer - and is installed by default when opening a devcontainer generated by _dc-utils_.
 
 ## TODO
 
-- Overlay user customizations on top of generated project (- `copier update` should _not_ delete user customizations):
-  - Additional vscode extensions (in .devcontainer/devcontainer.json)
-  - Additional vscode settings (in .vscode/settings.json)
-  - Custom scripts (in .devcontainer/post-create.sh)
-  - Custom scripts (in .devcontainer/Dockerfile)
+- Add yarn support
+- Add perl support
+- Add 'sidecars' (e.g., redis/postgres/mysql)

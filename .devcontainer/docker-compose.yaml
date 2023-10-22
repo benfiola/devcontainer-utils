@@ -1,0 +1,10 @@
+services:
+    devcontainer:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        command: /bin/sh -c 'while sleep 1000; do :; done'
+        volumes:
+        - /home/bfiola/source/github.com/benfiola/devcontainer-utils/.devcontainer:/workspace/.devcontainer:cached
+        - /home/bfiola/source/github.com/benfiola/devcontainer-utils:/workspace/devcontainer-utils:cached
+version: '3'
