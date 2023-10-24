@@ -1,25 +1,59 @@
 import * as vscode from "vscode";
+import * as childProcess from "child_process"
+
+let channel: vscode.OutputChannel
+
+export const waitForFinalize = async () => {
+  let check = () => {
+    return new Promise<boolean>((resolve, reject) => {
+      childProcess.exec("dc-utils-is-finalized", (error, stdout) => {
+        if(error) {
+          if(error.code !== 1) {
+            return reject(error);
+          }
+          return resolve(false);
+        }
+        return resolve(true);
+      })
+    })
+  }
+
+  let sleep = (timeMs: number) => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, timeMs)
+    })
+  }
+
+  while(! await check()) {
+    await sleep(1000)
+  }
+}
 
 export const activate = async (context: vscode.ExtensionContext) => {
-  console.log("extension activated");
+  channel = vscode.window.createOutputChannel("devcontainer-utils")
+  channel.appendLine("extension activated");
 
   if (vscode.workspace.workspaceFile) {
-    console.log(
+    channel.appendLine(
       `workspace '${vscode.workspace.workspaceFile}' already opened - exiting`
     );
     return;
   }
 
-  const path = ".devcontainer/devcontainer.code-workspace";
-  const uris = await vscode.workspace.findFiles(path);
-  if (uris.length === 0) {
-    console.log(`workspace '${path}' not found - exiting`);
+  const workspacePath = ".devcontainer/devcontainer.code-workspace";
+  const workspaceUris = await vscode.workspace.findFiles(workspacePath);
+  if (workspaceUris.length === 0) {
+    channel.appendLine(`workspace '${workspacePath}' not found - exiting`);
     return;
   }
-  const uri = uris[0];
+  const workspaceUri = workspaceUris[0];
 
-  console.log(`workspace '${uri}' found - opening`);
-  await vscode.commands.executeCommand("vscode.openFolder", uri);
+  channel.appendLine(`workspace '${workspaceUri}' found - waiting for docker build to finalize`);
+  await waitForFinalize()
+  channel.appendLine(`docker build finalized`);
+
+  channel.appendLine(`opening workspace '${workspaceUri}'`);
+  await vscode.commands.executeCommand("vscode.openFolder", workspaceUri);
 };
 
 export const deactivate = () => {};

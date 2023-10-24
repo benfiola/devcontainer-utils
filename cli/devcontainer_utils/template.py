@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Literal, Union
 
 import copier
 from devcontainer_utils.config import Config
@@ -8,24 +7,41 @@ from devcontainer_utils.project import ProjectType
 template_path = Path(__file__).parent.joinpath("template_")
 
 
+ext_black = "ms-python.black-formatter"
+ext_isort = "ms-python.isort"
+ext_perl = "richterger.perl"
+ext_pls = "fractalboy.pls"
+ext_python = "ms-python.python"
+ext_pylance = "ms-python.vscode-pylance"
+ext_autodocstring = "njpwerner.autodocstring"
+ext_format_code_action = "rohit-gohri.format-code-action"
+ext_prettier = "esbenp.prettier-vscode"
+ext_errorlens = "usernamehw.errorlens"
+ext_devcontainer_utils = "/workspace/.devcontainer/devcontainer-utils.vsix"
+
+
 def get_vscode_extensions(config: Config) -> list[str]:
     extension_map = {
-        ProjectType.Python: [
-            "ms-python.black-formatter",
-            "ms-python.isort",
-            "ms-python.python",
-            "ms-python.vscode-pylance",
-            "njpwerner.autodocstring",
-        ],
         ProjectType.NodeJS: [],
+        ProjectType.Perl: [
+            ext_perl,
+            ext_pls
+        ],
+        ProjectType.Python: [
+            ext_black,
+            ext_isort,
+            ext_python,
+            ext_pylance,
+            ext_autodocstring,
+        ],
     }
 
     extensions = set(
         [
-            "/workspace/.devcontainer/devcontainer-utils.vsix",
-            "esbenp.prettier-vscode",
-            "rohit-gohri.format-code-action",
-            "usernamehw.errorlens",
+            ext_devcontainer_utils,
+            ext_prettier,
+            ext_format_code_action,
+            ext_errorlens,
         ]
     )
     for workspace in config.workspaces:
@@ -40,14 +56,8 @@ def get_vscode_settings(config: Config):
 
     settings = {}
 
-    python = "ms-python.python"
-    prettier = "esbenp.prettier-vscode"
-    black = "ms-python.black-formatter"
-    isort = "ms-python.isort"
-    format_document = "rohit-gohri.format-code-action"
-
     formatter_map = {
-        prettier: [
+        ext_prettier: [
             "dockercompose",
             "javascript",
             "javascriptreact",
@@ -58,10 +68,13 @@ def get_vscode_settings(config: Config):
             "typescriptreact",
             "yaml",
         ],
-        black: ["python"],
+        ext_black: ["python"],
     }
 
     for formatter, syntaxes in formatter_map.items():
+        if formatter not in extensions:
+            continue
+
         for syntax in syntaxes:
             sub_key = f"[{syntax}]"
             sub_settings = settings.setdefault(sub_key, {})
@@ -69,23 +82,46 @@ def get_vscode_settings(config: Config):
             code_actions = sub_settings["editor.codeActionsOnSave"] = []
 
             # NOTE: prettier currently auto-deletes unused imports when 'source.organizeImports' is used.
-            if formatter == prettier:
+            if formatter == ext_prettier:
                 code_actions.append("source.sortImports")
             else:
                 code_actions.append("source.organizeImports")
 
             # NOTE: 'source.formatDocument' is provided by an extension
-            if format_document in extensions:
+            if ext_format_code_action in extensions:
                 code_actions.append("source.formatDocument")
 
-    if isort in extensions:
-        if black in extensions:
+    if ext_isort in extensions:
+        if ext_black in extensions:
             settings["isort.args"] = ["--profile", "black"]
 
-    if python in extensions:
+    if ext_python in extensions:
         settings[
             "python.defaultInterpreterPath"
         ] = "/devcontainer-utils/asdf/shims/python"
+
+    if any([ext_perl in extensions, ext_pls in extensions]):
+        inc_folders = []
+        for workspace in config.workspaces:
+            for project in workspace.projects:
+                if project.type != ProjectType.Perl:
+                    continue
+                inc_folders.append(str(project.directory))
+        
+        perl_inc = sorted(inc_folders)
+        perl_cmd = "/devcontainer-utils/asdf/shims/perl"
+
+        if ext_perl in extensions:
+            settings.update({
+                "pls.syntax.perl": perl_cmd,
+                "pls.inc": perl_inc,
+            })
+        
+        if ext_pls in extensions:
+            settings.update({            
+                "perl.perlCmd": perl_cmd,
+                "perl.perlInc": perl_inc
+            })
 
     return settings
 
@@ -164,6 +200,8 @@ def get_post_create_sh(config: Config) -> str:
             )
             project_setup_commands.append(project_setup_command)
     lines.extend(sorted(project_setup_commands))
+
+    lines.append("dc-utils-finalize")
 
     return "\n".join(lines)
 

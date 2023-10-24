@@ -11,6 +11,7 @@ unknown = "__unknown__"
 
 class ProjectType(str, Enum):
     NodeJS = "nodejs"
+    Perl = "perl"
     Python = "python"
 
 
@@ -72,6 +73,33 @@ class NodeJS(ProjectBase):
             raise ValueError("version is unknown")
 
 
+class Perl(ProjectBase):
+    type: Literal[ProjectType.Perl] = ProjectType.Perl
+    version: str
+
+    @classmethod
+    def create_project(cls, directory: Path) -> "Python":
+        makefile_pl = directory.joinpath("Makefile.PL")
+        if not makefile_pl.exists():
+            raise ValueError(directory)
+
+        return cls(directory=directory, version=unknown)
+
+    def get_project_setup_command(self) -> str:
+        return "PERL_MM_USE_DEFAULT=1 cpan App:cpanminus && cpanm --notest ."
+
+    def get_tool_install_command(self) -> str:
+        return f"dc-utils-install-tool perl {self.version}"
+
+    def prompt(self, terminal: Terminal):
+        if self.version == unknown:
+            self.version = terminal.prompt(f"Enter '{self.type.value}' version")
+
+    def finalize(self):
+        if self.version == unknown:
+            raise ValueError("version is unknown")
+        
+
 class Python(ProjectBase):
     type: Literal[ProjectType.Python] = ProjectType.Python
     version: str
@@ -100,7 +128,7 @@ class Python(ProjectBase):
             raise ValueError("version is unknown")
 
 
-Project = Annotated[Union[NodeJS, Python], pydantic.Field(discriminator="type")]
+Project = Annotated[Union[NodeJS, Perl, Python], pydantic.Field(discriminator="type")]
 
 
 ProjectMap = dict[ProjectType, Type[ProjectBase]]

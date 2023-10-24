@@ -17,7 +17,8 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "build": "vsce package --skip-license --allow-missing-repository --out ../cli/devcontainer_utils/template_/.devcontainer/devcontainer-utils.vsix"
+    "package": "vsce package --skip-license --allow-missing-repository --out ../cli/devcontainer_utils/template_/.devcontainer/devcontainer-utils.vsix",
+    "build": "npm run compile && npm run package"
   },
   "devDependencies": {
     "@types/node": "18.x",
