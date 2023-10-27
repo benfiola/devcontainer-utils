@@ -23,10 +23,7 @@ ext_devcontainer_utils = "/workspace/.devcontainer/devcontainer-utils.vsix"
 def get_vscode_extensions(config: Config) -> list[str]:
     extension_map = {
         ProjectType.NodeJS: [],
-        ProjectType.Perl: [
-            ext_perl,
-            ext_pls
-        ],
+        ProjectType.Perl: [ext_perl, ext_pls],
         ProjectType.Python: [
             ext_black,
             ext_isort,
@@ -106,22 +103,21 @@ def get_vscode_settings(config: Config):
             for project in workspace.projects:
                 if project.type != ProjectType.Perl:
                     continue
-                inc_folders.append(str(project.directory))
-        
+                inc_folders.append(str(workspace.get_devcontainer_path(project.directory)))
+
         perl_inc = sorted(inc_folders)
         perl_cmd = "/devcontainer-utils/asdf/shims/perl"
 
         if ext_perl in extensions:
-            settings.update({
-                "pls.syntax.perl": perl_cmd,
-                "pls.inc": perl_inc,
-            })
-        
+            settings.update(
+                {
+                    "pls.syntax.perl": perl_cmd,
+                    "pls.inc": perl_inc,
+                }
+            )
+
         if ext_pls in extensions:
-            settings.update({            
-                "perl.perlCmd": perl_cmd,
-                "perl.perlInc": perl_inc
-            })
+            settings.update({"perl.perlCmd": perl_cmd, "perl.perlInc": perl_inc})
 
     return settings
 
@@ -170,6 +166,7 @@ def get_docker_compose_yaml(config: Config) -> dict:
                 "build": {"dockerfile": "Dockerfile", "context": "."},
                 "volumes": sorted(volumes),
                 "command": "/bin/sh -c 'while sleep 1000; do :; done'",
+                "extra_hosts": ["host.docker.internal:host-gateway"],
             }
         },
     }

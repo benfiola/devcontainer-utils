@@ -78,7 +78,7 @@ class Perl(ProjectBase):
     version: str
 
     @classmethod
-    def create_project(cls, directory: Path) -> "Python":
+    def create_project(cls, directory: Path) -> "Perl":
         makefile_pl = directory.joinpath("Makefile.PL")
         if not makefile_pl.exists():
             raise ValueError(directory)
@@ -86,7 +86,7 @@ class Perl(ProjectBase):
         return cls(directory=directory, version=unknown)
 
     def get_project_setup_command(self) -> str:
-        return "PERL_MM_USE_DEFAULT=1 cpan App:cpanminus && cpanm --notest ."
+        return "PERL_MM_USE_DEFAULT=1 cpan App:cpanminus && cpanm --notest PLS Perl::LanguageServer && asdf reshim && cpanm --notest ."
 
     def get_tool_install_command(self) -> str:
         return f"dc-utils-install-tool perl {self.version}"
@@ -98,7 +98,7 @@ class Perl(ProjectBase):
     def finalize(self):
         if self.version == unknown:
             raise ValueError("version is unknown")
-        
+
 
 class Python(ProjectBase):
     type: Literal[ProjectType.Python] = ProjectType.Python
