@@ -1,0 +1,15 @@
+{
+    "tools": ["python:3.10.13", "nodejs:16.20.2"],
+    "mounts": {
+        "devcontainer-utils": "/home/bfiola/source/github.com/benfiola/devcontainer-utils"
+    },
+    "folders": {
+        "base-image": {
+            "path": "{devcontainer-utils}/base-image"
+        },
+        "vscode-ext": {
+            "path": "{devcontainer-utils}/vscode-ext",
+            "tools": ["nodejs"]
+        }
+    }
+}

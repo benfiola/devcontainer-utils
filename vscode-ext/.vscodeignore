@@ -1,5 +1,6 @@
 .vscode/**
 src/**
 tsconfig.json
+watch.js
 **/*.map
 **/*.ts

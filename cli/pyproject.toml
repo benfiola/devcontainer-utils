@@ -1,7 +1,0 @@
-[project]
-name="devcontainer-utils"
-version="0.0.1"
-dependencies=["click", "copier", "pydantic"]
-
-[project.scripts]
-dc-utils="devcontainer_utils.cli:main"

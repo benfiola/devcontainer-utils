@@ -2,63 +2,74 @@
 
 This repository hosts several subprojects intended to help create and maintain [devcontainer](https://containers.dev/) configurations for projects.
 
-Primarily, this project exposes a _dc-utils_ CLI that can auto-generate devcontainer configurations.
+## Getting started
 
-## _dc-utils_
+* Install the [benfiola.devcontainer-utils](https://marketplace.visualstudio.com/items?itemName=benfiola.devcontainer-utils) VSCode extension
+* Create a _devcontainer-utils.json_ file in your current directory
+* Right click the _devcontainer-utils.json_ file, then click _Generate Container_
+* Right click on the _.devcontainer_ folder, then click _Build Container_
+* Wait for the devcontainer to finish building, and the IDE to load the workspace.
 
-Install [dc-utils](./cli) with the following command:
+## VSCode Extension
 
-```shell
-pip install git+https://github.com/benfiola/devcontainer-utils#subdirectory=cli
-```
+The primary mechanism to interact with devcontainer-utils is via the [vscode-extension](./vscode-ext).
 
-Using the _dc-utils_ CLI is simple. When you run the following command:
+This extension is hosted on the VSCode Extension Marketplace: [benfiola.devcontainer-utils](https://marketplace.visualstudio.com/items?itemName=benfiola.devcontainer-utils).
 
-```shell
-dc-utils generate [workspace_folder] [workspace_folder...] [--output-path <output_path>]
-```
+### Configuration
 
-_dc-utils_ will recursively search each workspace folder and discover projects (and the languages used by them). It will then generate a _.devcontainer_ folder at _<output_path>_ containing:
+The _devcontainer-utils.json_ file provides the configuration used to generate the resulting devcontainer. 
 
-- A _Dockerfile_ that installs the tools for all discovered languages.
-- A _docker-compose.yaml_ file that will mount all workspace folders into the docker container
-- A _post-create.sh_ script (run after Docker image creation) that configures each discovered project with the discovered tool
-- A _devcontainer.json_ file that glues the above together, installs recommended extensions per discovered language and configures them
-- A _devcontainer.code-workspace_ file that defines a vscode workspace containing all workspace folders
+The schema is defined using _zod_ at [vscode-ext/src/schema.ts](./vscode-ext/src/schema.ts). Additionally, when editing a _devcontainer-utils.json_ file within VSCode - this extension utilizes this schema to perform live validation of the file.
 
-Ideally, you should be able to open a folder containing this _.devcontainer_ folder, re-open the folder in a devcontainer, and everything should just work, leaving you with a reasonable development environment.
+An example _devcontainer-utils.json_ file for this repo is located at [devcontainer-utils.json](./devcontainer-utils.json)
 
-As an example, _dc-utils_ was run against this repo - and you can see the generated output in the [.devcontainer](./.devcontainer) folder.
+### Generating a devcontainer
 
-You can read more about VSCode's devcontainers integration by reading their [docs](https://code.visualstudio.com/docs/devcontainers/containers).
+The `devcontainer-utils.generateContainer` VSCode command generates the container.
+
+This command can be run by right-clicking a _devcontainer-utils.json_ file and selecting _Generate Container_ from the context menu.
+
+### Opening a devcontainer
+
+The `devcontainer-utils.openContainer` VSCode command will open a devcontainer within VSCode.  If the container doesn't exist, VSCode will attempt to build it.
+
+This command can be run by right-clicking a _.devcontainer_ folder or any file within, and selecting _Open Container_ from the context menu.
+
+### Fore (re-)building a devcontainer
+
+The `devcontainer-utils.buildContainer` VSCode command will force a (re-)build the devcontainer and re-open it within VSCode.  
+
+This command can be run by right-clicking a _.devcontainer_ folder or any file within, and selecting _Build Container_ from the context menu.
+
+### Auto-open Workspaces
+
+When opening a devcontainer produced by _devcontainer-utils_, the VSCode extension will automatically open the generated _devcontainer-utils.code-workspace_ file after the devcontainer has finished building.
 
 ## Base Image
 
-Rather than use specialized docker images that provide a single pre-installed tool, we use a [custom base image](./base-image) that installs [asdf](https://asdf-vm.com/) along with common build dependencies. This allows us to more easily generate dynamic Dockerfiles when _dc-utils_ is run.
+All devcontainers utilize a base docker image.
 
-Core to the base image is the `dc-utils-install-tool` command. This command adds the required asdf plugin, installs a tool version using that plugin, and then sets that tool as the current (global) version for the image.
+Rather than use specialized docker images that provide a single pre-installed tool, we use a [custom base image](./base-image) that installs [asdf](https://asdf-vm.com/) along with common build dependencies. This allows us to more easily generate dynamic Dockerfiles when _dc-utils_ is run.  
+
+This base image is hosted on Docker Hub: [benfiola/devcontainer-utils](https://hub.docker.com/r/benfiola/devcontainer-utils).
+
+Core to the base image is the `dc-utils` CLI. 
+
+The `dc-utils` CLI exposes a few commands - most notably, the `install-tool` subcommand.  This command adds the required asdf plugin, installs a tool version using that plugin, and then sets that tool as the current (global) version for the image.
 
 Here's an example image that installs nodejs-16.20.2 and python-3.10.13.
 
 ```
 FROM docker.io/benfiola/devcontainer-utils:latest
-dc-utils-install-tool nodejs 16.20.2
-dc-utils-install-tool python 3.10.3
+dc-utils install-tool nodejs 16.20.2
+dc-utils install-tool python 3.10.3
 ```
 
 The resulting docker image will then have nodejs 16.20.2 and python 3.10.3 on the PATH.
 
 There's a few additional commands included in the base image:
 
-* `dc-utils-version` prints the current version of the image
-* `dc-utils-finalize` is used to signal that post-create commands have finished running
-* `dc-utils-is-finalized` is used to determine whether or not post-create commands have finished running.
-
-## VSCode Extension
-
-VSCode won't automatically open workspaces when reopening a project in a devcontainer. Because we generate a workspace via _dc-utils_, we smooth out this process (and save a click) by using a [custom vscode extension](./vscode-ext/). This extension will open the generated _code-workspace_ file when vscode is initially launched in a devcontainer (after the devcontainer is fully built).  This extension is automatically included for any template rendered by _dc-utils_.
-
-## TODO
-
-- Add yarn support
-- Add 'sidecars' (e.g., redis/postgres/mysql)
+* `dc-utils version` prints the current version of the image
+* `dc-utils finalize` is used to signal that post-create commands have finished running
+* `dc-utils is-finalized` is used to determine whether or not post-create commands have finished running.

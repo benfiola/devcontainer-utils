@@ -1,6 +1,6 @@
 #!/bin/sh -e
-PUSH="${PUSH:-0}"
 LATEST="${LATEST:-0}"
+PUSH="${PUSH:-0}"
 
 confirm() {
     value="n"

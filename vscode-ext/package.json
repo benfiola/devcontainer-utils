@@ -2,7 +2,9 @@
   "name": "devcontainer-utils",
   "displayName": "devcontainer-utils",
   "description": "",
-  "version": "0.0.1",
+  "repository": "https://github.com/benfiola/devcontainer-utils.git",
+  "publisher": "benfiola",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.83.0"
   },
@@ -13,17 +15,83 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "contributes": {},
+  "contributes": {
+    "commands": [
+      {
+        "command": "devcontainer-utils.generateContainer",
+        "title": "Generate Container"
+      },
+      {
+        "command": "devcontainer-utils.buildContainer",
+        "title": "Build Container"
+      },
+      {
+        "command": "devcontainer-utils.openContainer",
+        "title": "Open in Container"
+      },
+      {
+        "command": "devcontainer-utils.openWorkspace",
+        "title": "Open Workspace"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "devcontainer-utils.json",
+        "url": "./out/schema.gen.json"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "devcontainer-utils.generateContainer",
+          "when": "devcontainer-utils.isInDevcontainer != true && resourceFilename == devcontainer-utils.json"
+        },
+        {
+          "command": "devcontainer-utils.buildContainer",
+          "when": "resourcePath =~ /\\.devcontainer/"
+        },
+        {
+          "command": "devcontainer-utils.openContainer",
+          "when": "resourcePath =~ /\\.devcontainer/"
+        },
+        {
+          "command": "devcontainer-utils.openWorkspace",
+          "when": "devcontainer-utils.isInDevcontainer == true && resourceFilename == devcontainer-utils.code-workspace"
+        },
+        {
+          "command": "devcontainer-utils.openWorkspace",
+          "when": "resourceFilename =~ /.code-workspace/ && resourceFilename != devcontainer-utils.code-workspace"
+        }
+      ]
+    }
+  },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "package": "vsce package --skip-license --allow-missing-repository --out ../cli/devcontainer_utils/template_/.devcontainer/devcontainer-utils.vsix",
-    "build": "npm run compile && npm run package"
+    "clean": "rm -rf ./out ./dist",
+    "compile:schema": "ts-node ./src/scripts/buildJsonSchema.ts",
+    "compile:ts": "tsc -p ./",
+    "compile": "npm run compile:schema && npm run compile:ts",
+    "watch:static": "ts-node ./src/scripts/watch.ts",
+    "watch:ts": "tsc -watch -p ./",
+    "watch": "concurrently --raw 'npm run watch:static' 'npm run watch:ts'",
+    "package": "mkdir -p ./dist && vsce package --skip-license --allow-missing-repository --out ./dist/devcontainer-utils.vsix",
+    "build": "npm run clean && npm run compile && npm run package",
+    "publish": "npm run build && vsce publish -i ./dist/devcontainer-utils.vsix"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/json-stable-stringify": "^1.0.36",
     "@types/node": "18.x",
     "@types/vscode": "^1.83.0",
     "@vscode/vsce": "^2.21.1",
-    "typescript": "^5.2.2"
+    "chokidar": "^3.5.3",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "zod-to-json-schema": "^3.21.4"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "json-stable-stringify": "^1.0.2",
+    "zod": "^3.22.4"
   }
 }

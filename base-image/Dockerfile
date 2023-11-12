@@ -39,14 +39,12 @@ RUN apt -y install \
   libffi-dev \
   liblzma-dev
 
+# install dc-utils dependencies
+RUN apt -y install python3
+
 # copy local files
 ADD version.txt /devcontainer-utils
-ADD dc-utils-finalize /devcontainer-utils
-ADD dc-utils-install-tool /devcontainer-utils
-ADD dc-utils-is-finalized /devcontainer-utils
-ADD dc-utils-version /devcontainer-utils
+ADD dc-utils /devcontainer-utils
 
-# add public commands to PATH
-RUN for cmd in dc-utils-finalize dc-utils-install-tool dc-utils-is-finalized dc-utils-version; do \
-    ln -s "/devcontainer-utils/${cmd}" "/usr/bin/${cmd}"; \
-    done;
+# add cli to PATH
+RUN ln -s /devcontainer-utils/dc-utils /usr/bin/dc-utils

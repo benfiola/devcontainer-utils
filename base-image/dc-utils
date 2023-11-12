@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+import argparse
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+project_dir = Path(__file__).resolve().parent
+finalized_file = project_dir.joinpath(".finalized")
+
+
+def run_cmd(cmd: str):
+    subprocess.run(shlex.split(cmd))
+
+
+def finalize():
+    print(f"touching file: {finalized_file}")
+    finalized_file.touch()
+
+
+def install_tool(plugin: str, version: str):
+    print(f"installing plugin: {plugin}")
+    run_cmd(f"asdf plugin add {plugin}")
+
+    print(f"installing tool version: {plugin}-{version}")
+    run_cmd(f"asdf install {plugin} {version}")
+
+    print(f"setting global tool: {plugin}")
+    run_cmd(f"asdf global {plugin} {version}")
+
+
+def is_finalized():
+    if finalized_file.exists():
+        return 0
+    return 1
+
+
+def version():
+    version_file = project_dir.joinpath("version.txt")
+    print(version_file.read_text())
+
+
+def get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    subparser = parser.add_subparsers()
+
+    cmd_parser = subparser.add_parser("finalize")
+    cmd_parser.set_defaults(func=finalize)
+
+    cmd_parser = subparser.add_parser("install-tool")
+    cmd_parser.add_argument("plugin")
+    cmd_parser.add_argument("version")
+    cmd_parser.set_defaults(func=install_tool)
+
+    cmd_parser = subparser.add_parser("is-finalized")
+    cmd_parser.set_defaults(func=is_finalized)
+
+    cmd_parser = subparser.add_parser("version")
+    cmd_parser.set_defaults(func=version)
+
+    return parser
+
+
+def main():
+    parser = get_parser()
+    data = vars(parser.parse_args())
+
+    func = data.pop("func")
+
+    code = func(**data) or 0
+
+    sys.exit(code)
+
+
+if __name__ == "__main__":
+    main()
