@@ -28,7 +28,8 @@ export const activate = async (context: vscode.ExtensionContext) => {
     isInDevcontainer: await isInDevcontainer(),
   };
   for (const [key, value] of Object.entries(contexts)) {
-    vscode.commands.executeCommand("setContext", key, value);
+    const fullKey = `${displayName}.${key}`;
+    vscode.commands.executeCommand("setContext", fullKey, value);
   }
 
   channel.appendLine("registering commands");
