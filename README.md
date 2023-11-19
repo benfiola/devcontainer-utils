@@ -10,7 +10,7 @@ This repository hosts several subprojects intended to help create and maintain [
 * Right click on the _.devcontainer_ folder, then click _Build Container_
 * Wait for the devcontainer to finish building, and the IDE to load the workspace.
 
-## VSCode Extension
+## VSCode extension
 
 The primary mechanism to interact with devcontainer-utils is via the [vscode-extension](./vscode-ext).
 
@@ -36,23 +36,25 @@ The `devcontainer-utils.openContainer` VSCode command will open a devcontainer w
 
 This command can be run by right-clicking a _.devcontainer_ folder or any file within, and selecting _Open Container_ from the context menu.
 
-### Fore (re-)building a devcontainer
+### Force (re-)building a devcontainer
 
 The `devcontainer-utils.buildContainer` VSCode command will force a (re-)build the devcontainer and re-open it within VSCode.  
 
 This command can be run by right-clicking a _.devcontainer_ folder or any file within, and selecting _Build Container_ from the context menu.
 
-### Auto-open Workspaces
+### Auto-open workspaces
 
 When opening a devcontainer produced by _devcontainer-utils_, the VSCode extension will automatically open the generated _devcontainer-utils.code-workspace_ file after the devcontainer has finished building.
 
-## Base Image
+## Base image
 
 All devcontainers utilize a base docker image.
 
 Rather than use specialized docker images that provide a single pre-installed tool, we use a [custom base image](./base-image) that installs [asdf](https://asdf-vm.com/) along with common build dependencies. This allows us to more easily generate dynamic Dockerfiles when _dc-utils_ is run.  
 
 This base image is hosted on Docker Hub: [benfiola/devcontainer-utils](https://hub.docker.com/r/benfiola/devcontainer-utils).
+
+### dc-utils CLI
 
 Core to the base image is the `dc-utils` CLI. 
 
