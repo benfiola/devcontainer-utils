@@ -13,7 +13,7 @@ export const configSchema = zod.object({
   folders: zod.record(
     zod.object({
       path: zod.string().regex(/{[^}]+}.*/),
-      tools: zod.array(zod.enum(["python", "nodejs"])).default([]),
+      tools: zod.array(zod.enum(["python", "nodejs", "perl"])).default([]),
     })
   ),
   options: zod

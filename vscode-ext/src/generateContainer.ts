@@ -122,14 +122,10 @@ const createDockerfile = async (config: Config) => {
   /*
   Creates a dockerfile using the provided configuration
   */
-  let text = ["FROM docker.io/benfiola/devcontainer-utils:latest"];
+  let text = ["FROM docker.io/benfiola/devcontainer-utils:0.0.3"];
 
   const tools = [...config.tools].sort();
   for (const tool of tools) {
-    const parts = tool.split(":");
-    if (parts.length !== 2) {
-      throw new Error(`malformed tool: ${tool}`);
-    }
     const [plugin, version] = tool.split(":");
     text.push(
       `# tools (${tool})\nRUN dc-utils install-tool ${plugin} ${version}`
@@ -263,11 +259,7 @@ const createDevcontainerFile = async (config: Config) => {
 
   const plugins = new Set<string>();
   for (const tool of config.tools) {
-    const parts = tool.split(":");
-    if (parts.length !== 2) {
-      throw new Error(`malformed tool: ${tool}`);
-    }
-    const [plugin, _] = parts;
+    const [plugin, _] = tool.split(":");
     plugins.add(plugin);
   }
 
@@ -298,64 +290,81 @@ const createPostCreateFile = async (config: Config) => {
   */
   const lines = ["#!/bin/bash -e"];
 
-  if (config.options.pypiServer) {
-    lines.push(
-      `# options.pypiServer (${config.options.pypiServer})\necho 'index-url = ${config.options.pypiServer}' > /etc/pip.conf`
-    );
-  }
+  if (hasPlugin(config, "nodejs")) {
+    lines.push(`# tool (nodejs:*)`)
 
-  if (config.options.npmRegistry) {
-    lines.push(
-      `# options.npmRegistry (${config.options.npmRegistry})\nnpm config set registry ${config.options.npmRegistry}`
-    );
-  }
-
-  if (config.options.useYarn) {
-    lines.push(
-      `# options.useYarn (${config.options.useYarn})\nnpm install -g yarn`
-    );
-    if (config.options.npmRegistry) {
-      lines.push(
-        `# options.useYarn (${config.options.useYarn}) + options.nmpRegistry (${config.options.npmRegistry})\nyarn config set registry ${config.options.npmRegistry}`
-      );
+    if(config.options.npmRegistry) {
+      lines.push(`# options.npmRegistry (${config.options.npmRegistry})`);
+      lines.push(`npm config set registry ${config.options.npmRegistry}`);
     }
-  }
-
-  const folderNames = Object.keys(config.folders).sort();
-  for (const folderName of folderNames) {
-    const folder = config.folders[folderName];
-    const hasPython = folder.tools.indexOf("python") !== -1;
-    const hasNode = folder.tools.indexOf("nodejs") !== -1;
-
-    if (hasPython) {
-      getChannel().appendLine(folder.path);
-      lines.push(
-        `# folder.tools (${folder.path}, "python")\ncd "${folder.path}" \nif [ -f "./requirements.txt" ]; then\n\tpip install -r "./requirements.txt"\nfi\npip install -e .`
-      );
-    }
-
-    if (hasNode) {
-      if (config.options.useYarn) {
-        lines.push(
-          `# folder.tools (${folder.path}, "nodejs") + options.useYarn (${config.options.useYarn})\ncd "${folder.path}"\nyarn`
-        );
-      } else {
-        lines.push(
-          `# folder.tools (${folder.path}, "nodejs")\ncd "${folder.path}"\nnpm install --dev .`
-        );
+    if (config.options.useYarn) {
+      lines.push(`# options.useYarn (${config.options.useYarn})`);
+      lines.push(`npm install -g yarn`);
+      if (config.options.npmRegistry) {
+        lines.push(`# options.useYarn (${config.options.useYarn}) + options.nmpRegistry (${config.options.npmRegistry})`);
+        lines.push(`yarn config set registry ${config.options.npmRegistry}`);
       }
     }
   }
 
+  if (hasPlugin(config, "perl")) {
+    lines.push(`# tools (perl:*)`)
+    lines.push(`export PERL_MM_USE_DEFAULT=1`)
+    lines.push(`cpan App::cpanminus`)
+  }
+  if (hasPlugin(config, "python")) {
+    lines.push(`# tools (python:*)`)
+
+    if(config.options.pypiServer) {
+      lines.push(`# options.pypiServer (${config.options.pypiServer})`);
+      lines.push(`echo 'index-url = ${config.options.pypiServer}' > /etc/pip.conf`);
+    }
+  }
+
+
+
+  const folderNames = Object.keys(config.folders).sort();
+  for (const folderName of folderNames) {
+    const folder = config.folders[folderName];
+
+    lines.push(`# folder (${folder.path})`)
+
+    if (hasPlugin(config, "nodejs") && usesTool(folder, "nodejs")) {
+      if (config.options.useYarn) {
+        lines.push(`# tools (nodejs:*) + options.useYarn (${config.options.useYarn})`);
+        lines.push(`cd "${folder.path}"`);
+        lines.push(`yarn`);
+      } else {
+        lines.push(`# tools (nodejs:*)`);
+        lines.push(`cd "${folder.path}"`);
+        lines.push(`npm install --dev .`);
+      }
+    }
+
+    if (hasPlugin(config, "perl") && usesTool(folder, "perl")) {
+      lines.push( `# tools (perl:*)`);
+      lines.push(`cd "${folder.path}"`);
+      lines.push(`curl -L https://cpanmin.us | perl - App::cpanminus`);
+    }
+
+    if (hasPlugin(config, "python") && usesTool(folder, "python")) {
+      lines.push(`# tools (python:*)`);
+      lines.push(`cd "${folder.path}"`);
+      lines.push(`if [ -f "./requirements.txt" ]; then`);
+      lines.push(`  pip install -r "./requirements.txt"`);
+      lines.push(`fi`)
+      lines.push(`pip install -e .`);
+    }
+  }
   const userPostCreateShPath = getWorkspacePath(
     devcontainerMountName,
     "user-post-create.sh"
   );
-  lines.push(
-    `# hook to allow custom post-create behavior\n${userPostCreateShPath}`
-  );
+  lines.push(`# hook to allow custom post-create behavior`)
+  lines.push(`${userPostCreateShPath}`);
 
-  lines.push("# finalize devcontainer creation\ndc-utils finalize");
+  lines.push(`# finalize devcontainer creation`);
+  lines.push(`dc-utils finalize`);
 
   return lines.join("\n");
 };
@@ -394,3 +403,24 @@ const createWorkspaceFile = async (config: Config) => {
   }
   return jsonStringify(data, { space: 2 });
 };
+
+
+const hasPlugin = (config: Config, plugin: string) => {
+  for(const tool of config.tools) {
+    const [toolPlugin, ] = tool.split(":")
+    if(toolPlugin === plugin) {
+      return true;
+    }
+  }
+  return false;
+}
+
+type Folder = Config["folders"][string]
+const usesTool = (folder: Folder, tool: string) => {
+  for(const folderTool of folder.tools) {
+    if(folderTool === tool) {
+      return true;
+    }
+  }
+  return false;
+}
