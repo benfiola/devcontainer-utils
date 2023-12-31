@@ -22,6 +22,10 @@ export const configSchema = zod.object({
         .string()
         .regex(/https?:\/\/.*/)
         .optional(),
+      trustedPypiServers: zod.array(zod.string()).optional(),
+      extraPypiServers: zod
+        .array(zod.string().regex(/https?:\/\/.*/))
+        .optional(),
       npmRegistry: zod
         .string()
         .regex(/https?:\/\/.*/)

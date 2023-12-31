@@ -44,11 +44,13 @@ export const generateContainer = async (configFile: vscode.Uri) => {
     }
 
     const templateCreators = {
-      [files.userPostCreate]: createUserPostCreateFile,
+      [files.userBeforePostCreate]: createUserBeforePostCreateFile,
+      [files.userAfterPostCreate]: createUserAfterPostCreateFile,
     };
     for (const [filename, creator] of Object.entries(templateCreators)) {
       const filePath = path.join(devcontainerPath, filename);
       if (await pathExists(filePath)) {
+        channel.appendLine(`not creating template: ${filePath} - file exists`);
         continue;
       }
 
@@ -200,12 +202,20 @@ const createDockerComposeFile = async (config: Config) => {
 interface VscodeBaseSettings {
   "editor.codeActionsOnSave"?: string[];
   "editor.defaultFormatter"?: string;
+}
+
+interface VscodePythonSettings extends VscodeBaseSettings {}
+
+interface VscodeSettings extends VscodeBaseSettings {
+  "[python]"?: VscodePythonSettings;
   "isort.args"?: string[];
   "python.defaultInterpreterPath"?: string;
+  "perl.perlCmd"?: string;
+  "perl.perlInc"?: string[];
+  "pls.syntax.perl"?: string;
+  "pls.inc"?: string[];
 }
-interface VscodeSettings extends VscodeBaseSettings {
-  "[python]"?: VscodeBaseSettings;
-}
+
 interface DevcontainerJsonVscodeCustomizations {
   settings: VscodeSettings;
   extensions: string[];
@@ -281,6 +291,14 @@ const createDevcontainerFile = async (config: Config) => {
     );
   }
 
+  if (plugins.has("perl")) {
+    extensions.push(...["fractalboy.pls", "richterger.perl"]);
+    settings["perl.perlCmd"] = "/devcontainer-utils/asdf/shims/perl";
+    settings["perl.perlInc"] = [];
+    settings["pls.syntax.perl"] = "/devcontainer-utils/asdf/shims/perl";
+    settings["pls.inc"] = [];
+  }
+
   return jsonStringify(data, { space: 2 });
 };
 
@@ -290,10 +308,17 @@ const createPostCreateFile = async (config: Config) => {
   */
   const lines = ["#!/bin/bash -e"];
 
-  if (hasPlugin(config, "nodejs")) {
-    lines.push(`# tool (nodejs:*)`)
+  const userBeforePostCreatePath = getWorkspacePath(
+    devcontainerMountName,
+    files.userBeforePostCreate
+  );
+  lines.push(`# hook to allow custom before post-create behavior`);
+  lines.push(`${userBeforePostCreatePath}`);
 
-    if(config.options.npmRegistry) {
+  if (hasPlugin(config, "nodejs")) {
+    lines.push(`# tool (nodejs:*)`);
+
+    if (config.options.npmRegistry) {
       lines.push(`# options.npmRegistry (${config.options.npmRegistry})`);
       lines.push(`npm config set registry ${config.options.npmRegistry}`);
     }
@@ -301,67 +326,104 @@ const createPostCreateFile = async (config: Config) => {
       lines.push(`# options.useYarn (${config.options.useYarn})`);
       lines.push(`npm install -g yarn`);
       if (config.options.npmRegistry) {
-        lines.push(`# options.useYarn (${config.options.useYarn}) + options.nmpRegistry (${config.options.npmRegistry})`);
+        lines.push(
+          `# options.useYarn (${config.options.useYarn}) + options.nmpRegistry (${config.options.npmRegistry})`
+        );
         lines.push(`yarn config set registry ${config.options.npmRegistry}`);
       }
     }
   }
 
   if (hasPlugin(config, "perl")) {
-    lines.push(`# tools (perl:*)`)
-    lines.push(`export PERL_MM_USE_DEFAULT=1`)
-    lines.push(`cpan App::cpanminus`)
+    lines.push(`# tools (perl:*)`);
+    lines.push(`export PERL_MM_USE_DEFAULT=1`);
+    lines.push(`cpan App::cpanminus`);
+    lines.push(`asdf reshim`);
+    lines.push(`cpanm --notest PLS Perl::LanguageServer`);
+    lines.push(`asdf reshim`);
   }
-  if (hasPlugin(config, "python")) {
-    lines.push(`# tools (python:*)`)
 
-    if(config.options.pypiServer) {
+  if (hasPlugin(config, "python")) {
+    lines.push(`# tools (python:*)`);
+
+    lines.push(`echo "[global]" > /etc/pip.conf`);
+
+    if (config.options.pypiServer) {
       lines.push(`# options.pypiServer (${config.options.pypiServer})`);
-      lines.push(`echo 'index-url = ${config.options.pypiServer}' > /etc/pip.conf`);
+      lines.push(
+        `echo "index-url = ${config.options.pypiServer}" >> /etc/pip.conf`
+      );
+
+      if (config.options.extraPypiServers) {
+        lines.push(
+          `# options.extraPypiServers (${config.options.extraPypiServers})`
+        );
+        lines.push(`echo "extra-index-url = " >> /etc/pip.conf`);
+        for (const extraPypiServer of config.options.extraPypiServers) {
+          lines.push(`echo "\t${extraPypiServer}" >> /etc/pip.conf`);
+        }
+      }
+
+      if (config.options.trustedPypiServers) {
+        lines.push(
+          `# options.trustedPypiServers (${config.options.trustedPypiServers})`
+        );
+        lines.push(`echo "trusted-host = " >> /etc/pip.conf`);
+        for (const trustedPypiServer of config.options.trustedPypiServers) {
+          lines.push(`echo "\t${trustedPypiServer}" >> /etc/pip.conf`);
+        }
+      }
     }
   }
-
-
 
   const folderNames = Object.keys(config.folders).sort();
   for (const folderName of folderNames) {
     const folder = config.folders[folderName];
 
-    lines.push(`# folder (${folder.path})`)
+    lines.push(`# folder (${folder.path})`);
 
     if (hasPlugin(config, "nodejs") && usesTool(folder, "nodejs")) {
       if (config.options.useYarn) {
-        lines.push(`# tools (nodejs:*) + options.useYarn (${config.options.useYarn})`);
+        lines.push(
+          `# tools (nodejs:*) + options.useYarn (${config.options.useYarn})`
+        );
         lines.push(`cd "${folder.path}"`);
         lines.push(`yarn`);
       } else {
         lines.push(`# tools (nodejs:*)`);
         lines.push(`cd "${folder.path}"`);
-        lines.push(`npm install --dev .`);
+        lines.push(`if [ -f "./package.json" ]; then`);
+        lines.push(`    npm install --dev .`);
+        lines.push(`fi`);
       }
     }
 
     if (hasPlugin(config, "perl") && usesTool(folder, "perl")) {
-      lines.push( `# tools (perl:*)`);
+      lines.push(`# tools (perl:*)`);
       lines.push(`cd "${folder.path}"`);
-      lines.push(`curl -L https://cpanmin.us | perl - App::cpanminus`);
+      lines.push(`if [ -f "./Makefile.PL" ]; then`);
+      lines.push(`   cpanm --notest .`);
+      lines.push(`fi`);
     }
 
     if (hasPlugin(config, "python") && usesTool(folder, "python")) {
       lines.push(`# tools (python:*)`);
       lines.push(`cd "${folder.path}"`);
       lines.push(`if [ -f "./requirements.txt" ]; then`);
-      lines.push(`  pip install -r "./requirements.txt"`);
-      lines.push(`fi`)
-      lines.push(`pip install -e .`);
+      lines.push(`    pip install -r "./requirements.txt"`);
+      lines.push(`fi`);
+      lines.push(`if [ -f "./setup.py" ]; then`);
+      lines.push(`    pip install -e .`);
+      lines.push(`fi`);
     }
   }
-  const userPostCreateShPath = getWorkspacePath(
+
+  const userAfterPostCreateShPath = getWorkspacePath(
     devcontainerMountName,
-    "user-post-create.sh"
+    files.userAfterPostCreate
   );
-  lines.push(`# hook to allow custom post-create behavior`)
-  lines.push(`${userPostCreateShPath}`);
+  lines.push(`# hook to allow custom after post-create behavior`);
+  lines.push(`${userAfterPostCreateShPath}`);
 
   lines.push(`# finalize devcontainer creation`);
   lines.push(`dc-utils finalize`);
@@ -369,13 +431,24 @@ const createPostCreateFile = async (config: Config) => {
   return lines.join("\n");
 };
 
-const createUserPostCreateFile = async (config: Config) => {
+const createUserBeforePostCreateFile = async (config: Config) => {
   /*
-  Creates a user-post-create.sh file
+  Creates a user-before-post-create.sh file
   */
   const lines = [
     "#!/bin/bash -e",
-    "# Additional setup scripts can be placed here - devcontainers-utils won't touch this file!",
+    "# Additional setup scripts that need to be run before post-creation can be placed here - devcontainers-utils won't touch this file!",
+  ];
+  return lines.join("\n");
+};
+
+const createUserAfterPostCreateFile = async (config: Config) => {
+  /*
+  Creates a user-after-post-create.sh file
+  */
+  const lines = [
+    "#!/bin/bash -e",
+    "# Additional setup scripts that need to be run after post-creation can be placed here - devcontainers-utils won't touch this file!",
   ];
   return lines.join("\n");
 };
@@ -404,23 +477,22 @@ const createWorkspaceFile = async (config: Config) => {
   return jsonStringify(data, { space: 2 });
 };
 
-
 const hasPlugin = (config: Config, plugin: string) => {
-  for(const tool of config.tools) {
-    const [toolPlugin, ] = tool.split(":")
-    if(toolPlugin === plugin) {
+  for (const tool of config.tools) {
+    const [toolPlugin] = tool.split(":");
+    if (toolPlugin === plugin) {
       return true;
     }
   }
   return false;
-}
+};
 
-type Folder = Config["folders"][string]
+type Folder = Config["folders"][string];
 const usesTool = (folder: Folder, tool: string) => {
-  for(const folderTool of folder.tools) {
-    if(folderTool === tool) {
+  for (const folderTool of folder.tools) {
+    if (folderTool === tool) {
       return true;
     }
   }
   return false;
-}
+};
