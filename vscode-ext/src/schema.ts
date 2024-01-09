@@ -30,6 +30,7 @@ export const configSchema = zod.object({
         .string()
         .regex(/https?:\/\/.*/)
         .optional(),
+      perlInc: zod.array(zod.string()).optional(),
       useYarn: zod.boolean().default(false).optional(),
     })
     .optional()

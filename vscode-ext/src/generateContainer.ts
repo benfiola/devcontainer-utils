@@ -292,11 +292,12 @@ const createDevcontainerFile = async (config: Config) => {
   }
 
   if (plugins.has("perl")) {
+    const perlInc = config.options.perlInc || [];
     extensions.push(...["fractalboy.pls", "richterger.perl"]);
     settings["perl.perlCmd"] = "/devcontainer-utils/asdf/shims/perl";
-    settings["perl.perlInc"] = [];
+    settings["perl.perlInc"] = perlInc;
     settings["pls.syntax.perl"] = "/devcontainer-utils/asdf/shims/perl";
-    settings["pls.inc"] = [];
+    settings["pls.inc"] = perlInc;
   }
 
   return jsonStringify(data, { space: 2 });
@@ -341,6 +342,11 @@ const createPostCreateFile = async (config: Config) => {
     lines.push(`asdf reshim`);
     lines.push(`cpanm --notest PLS Perl::LanguageServer`);
     lines.push(`asdf reshim`);
+
+    if (config.options.perlInc) {
+      const envValue = config.options.perlInc.join(":");
+      lines.push(`export PERL5LIB="${envValue}"`);
+    }
   }
 
   if (hasPlugin(config, "python")) {
